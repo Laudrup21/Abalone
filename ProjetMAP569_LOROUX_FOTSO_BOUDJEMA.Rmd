@@ -1,0 +1,462 @@
+---
+title: "Projet Regression Christian LOROUX , Yanis Boudjema , Fotso Laudrup"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r packages, include = FALSE}
+library(kableExtra)
+library(ggplot2)
+library(hexbin)
+library(knitr)
+library(readr)
+library(ggstatsplot)
+
+```
+
+```{r}
+abalone <- Abalone_data
+abalone$Sex <- as.factor(abalone$Sex)
+
+set.seed(42)
+#Splitting dataset in train and test using 70/30 method
+indexes <- sample(1:nrow(abalone), size = 0.3 * nrow(abalone))
+abalone_train <- abalone[-indexes,]
+abalone_test <- abalone[indexes,]
+```
+
+#Question 1
+
+```{r}
+print(abalone["Length"])
+
+```
+
+#Question 2 : Analyse Univariée
+
+```{r}
+
+library(dplyr)
+
+abalone %>% summarise_if(is.numeric, mean)
+abalone %>% summarise_if(is.numeric, sd)
+abalone %>% summarise_if(is.numeric, range)
+
+
+```
+
+```{r}
+for (i in colnames(abalone)){
+  if( i != 'Sex' ){
+    boxplot(abalone[i] , main = i)
+  }}
+```
+
+Nous avons choisi de ne retirer ne les outiliers concernant une seule variable, à savoir la variable que nous érudierons afin de ne pas détruire la structure d'origine du dataset.
+
+### Removing the outliers of Height
+
+```{r}
+
+
+```
+
+#Question 3
+
+#Question 4
+
+```{r}
+boxplot(abalone$Height, plot=FALSE)$out
+
+outliers <- boxplot(abalone$Height, plot=FALSE)$out
+x<-abalone 
+x<- x[-which(x$Height %in% outliers),]
+boxplot(x$Height)
+```
+
+## Violin Plot Height and Rings
+
+## Violin Plot without outliers removal
+
+```{r}
+
+abalone %>% ggplot()+ aes(x= Height , y = Rings, colour = Sex)+ geom_violin() + geom_jitter()
+```
+
+On remarque que sans avoir retiré les outliers la distributions est différente en fonctions selon qu'il s'agisse d'un enfant ou pas. Mais globalement on observe pas de dépendance spéciale entre Height et Rings
+
+## Violin Plot with outliers removal
+
+```{r}
+x %>% ggplot()+ aes(x= Height , y = Rings, colour = Sex)+ geom_violin() + geom_jitter()
+```
+
+Après avoir retiré les outliers nous arrivons à observer une meilleur répartitions des points globale de Rings en fonction de Height.
+
+## Violin Plot without outliers removal of Log(Rings)
+
+```{r}
+abalone %>% ggplot()+ aes(x= Height , y = log(Rings), colour = Sex)+ geom_violin() + geom_jitter()
+```
+
+## Violin Plot with outliers removal of Log(Rings)
+
+```{r}
+x %>% ggplot()+ aes(x= Height , y = log(Rings), colour = Sex)+ geom_violin() + geom_jitter()
+```
+
+Cette transformation semble avoir un effet assez négatif, car ne permettant plus vraiment de mettre en évidence une structure spéciale.
+
+## Modèle linéaire en Rings \~ Height
+
+```{r}
+lm1 <- lm(Rings ~ Height , data = abalone)
+summary(lm1)
+plot(lm1)
+gg1 <- ggplot(abalone, aes( x = Height , y =Rings )) + geom_point() + geom_smooth(method = "lm" , formula = y ~ x )
+gg1
+```
+
+```{r}
+
+lm2 <- lm(Rings ~ Height , data = x)
+summary(lm2)
+plot(lm2)
+gg1 <- ggplot(x, aes( x = Height , y =Rings )) + geom_point() + geom_smooth(method = "lm" , formula = y ~ x )
+gg1
+```
+
+```{r}
+lm3 <- lm(log(Rings) ~ Height , data = x)
+summary(lm3)
+plot(lm3)
+gg1 <- ggplot(x, aes( x = Height , y =Rings )) + geom_point() + geom_smooth(method = "lm" , formula = y ~ log(x) )
+gg1
+```
+
+La transformation logarithmique nous permet de nous rapprocher d'une distribution normale au niveau du QQ plot et des résidus. Celle ci ne permettant pas de bien différenciers les nombres d'anneaux introduisons de nouvelles variables.
+
+```{r}
+GGally::ggpairs(x) 
+```
+
+```{r}
+x$Volume <-  x$Height*x$Diameter*x$Length
+x$Height_Weight <- x$Height/x$Shell_weight
+x$Weight_per_Volume  <-  x$Whole_weight/x$Volume
+    
+```
+
+```{r}
+lm4<- lm(log(Rings) ~ Volume , data = x)
+summary(lm4)
+plot(lm4)
+gg1 <- ggplot(x, aes( x = Volume , y =Rings )) + geom_point() + geom_smooth(method = "lm" , formula = log(y) ~ x )
+gg1
+```
+
+```{r}
+lm4_2<- lm(Rings ~ log(Volume) , data = x)
+summary(lm4_2)
+plot(lm4_2)
+gg1 <- ggplot(x, aes( x = Volume , y =Rings )) + geom_point() + geom_smooth(method = "lm" , formula = y ~ log(x) )
+gg1
+```
+
+```{r}
+lm5<- lm(log(Rings) ~ Height_Weight , data = x)
+summary(lm5)
+plot(lm5)
+gg1
+```
+
+```{r}
+
+lm6<- lm(log(Rings) ~ Volume + Height_Weight , data = x)
+summary(lm6)
+plot(lm6)
+
+```
+
+```{r}
+BIC( lm1,lm2,lm3,lm4,lm5,lm6)
+```
+
+```{r}
+GGally::ggpairs(x)
+```
+
+```{r}
+lm1 <- lm(Rings ~ Height , data = abalone)
+summary(lm1)
+plot(lm1)
+```
+
+```{r}
+
+gg1 <- ggplot(x, aes( x = Height , y =Rings)) + geom_point() + geom_smooth(method = "lm" , formula = y ~ x )
+gg1
+```
+
+```{r}
+
+abalone$Height_Diam <- abalone$Height/abalone$Diameter 
+abalone
+```
+
+```{r}
+abalone$Height_Len <-  abalone$Height*abalone$Diameter*abalone$Length
+abalone
+lm3 <- lm(Rings ~1+Height_Len , data = abalone)
+summary(lm3)
+plot(lm3)
+gg1 <- ggplot(abalone, aes( x = Height_Len , y =Rings)) + geom_point() + geom_smooth(method = "lm" , formula = y ~ x )
+gg1
+```
+
+```{r}
+lm2 <- lm(Rings ~ Length, data = x)
+summary(lm2)
+plot(lm2)
+gg2 <- ggplot(x, aes( x = Length , y =Rings)) + geom_point() + geom_smooth(method = "lm")
+gg2
+
+```
+
+```{r}
+lm7<- lm(log(Rings) ~ Weight_per_Volume , data = x)
+summary(lm7)
+plot(lm7)
+gg1 <- ggplot(x, aes( x = Weight_per_Volume , y =Rings )) + geom_point() + geom_smooth(method = "lm" , formula = log(y) ~ x )
+gg1
+```
+
+# Multiple Model
+
+#### Model including all the covariates 
+
+```{r}
+lm_0 <- lm(Rings ~ Diameter + Height + Whole_weight + Shucked_weight + Viscera_weight + Shell_weight+ Sex, data = x)
+summary(lm_0)
+plot(lm_0)
+
+
+```
+
+Lorsque l'on utilise toutes les variables de base pour notre regression linéaire, l'on obtient pas un modèle très interessant. Tentons de sélectionner les variables interessantes pour améliorer notre modèle de base. En commençant par voir l'influence du log sur la regression .
+
+```{r}
+mult_1 <- lm(log(Rings) ~ Diameter + Height + Whole_weight + Shucked_weight + Viscera_weight + Shell_weight+ Sex, data = x)
+summary(mult_1)
+plot(mult_1)
+```
+
+Lorsque l'on utilise le modèle log(Rings) en fonction de toutes les variables on obtient un modèle beaucoup plus stable. La transformation logarithmique a favorisé la normalité des résidus et l'on peut voir que la courbe des résidus contre les valeurs ajustées est similaire à la première mais avec l'avantage d'une meilleure normalité des résidus.
+
+Vu la forte corrélations entre les variables du poids nous avons décidés de supprimer les variables Whole_weight et Schucked Weight pour ne garder que le poids des viscères, le poids de la coquille .En ajoutant ces variables notre variable de poids volumique utilisée pour notre modèle linéaire classique. Nous n'incluons pas les variables Lenght et Diameter car celles ci sont déja utilisées pour calculer le volume de notre variable Weight per volume.Nous n'incluerons pas non plus le sexe car une études plus approfondies sera menée pour tester sa significativité.
+
+```{r}
+mult_2 <- lm(log(Rings)~ Weight_per_Volume + Viscera_weight + Shell_weight , data = x)
+summary(mult_2)
+plot(mult_2)
+```
+
+```{r}
+mult_2 <- lm(log(Rings)~Weight_per_Volume + Viscera_weight + Shell_weight  , data = x)
+summary(mult_2)
+plot(mult_2)
+```
+
+Le modèle linéaire ne semble pas très adapté au problème, il semble néanmoins un problème au niveau de la variable Sexe pour qui il semble pertinent que de ne garder le caractère infantile ou non.Appliquer un effet fixe sur le poids des viscère semble etre également une alternative interessante. Essayons néanmoins de voir ce qui se passe lorsque nous enlevons les outliers de nos différentes variables en vue de voir quel effet cela aura sur notre modèle.Plus tard nous ferons une études Ancova pour voir l'influence de la variable Sexe.
+
+##\# Suppressions des Outliers
+
+```{r}
+
+outliers1 <- boxplot(x$Weight_per_Volume, plot=FALSE)$out
+outliers2 <- boxplot(x$Viscera_weight, plot=FALSE)$out
+outliers3 <- boxplot(x$Shell_weight, plot=FALSE)$out
+
+x<- x[-which(x$Weight_per_Volume %in% outliers1),]
+x<- x[-which(x$Viscera_weight %in% outliers2),]
+x<- x[-which(x$Shell_weight %in% outliers3),]
+
+```
+
+```{r}
+mult_2 <- lm(log(Rings)~ Weight_per_Volume + Viscera_weight + Shell_weight , data = x)
+summary(mult_3)
+plot(mult_3)
+```
+
+Le retrait des outliers a engendré un modèle beaucoup plus interessant au regard des valeurs ajustées et de la normalité le dernier modèle nous semble donc être le meilleur choix du point de vue de la normalité et des valeurs ajustées.
+
+Comparons les scores BIC des différents modèle afin de vérifier cette affirmation.
+
+```{r}
+lm_0 <- lm(Rings ~ Diameter + Height + Whole_weight + Shucked_weight + Viscera_weight + Shell_weight+ Sex, data = x)
+lm_1 <- lm(log(Rings) ~ Diameter + Height + Whole_weight + Shucked_weight + Viscera_weight + Shell_weight, data = x)
+mult_1 <- lm(log(Rings) ~ Diameter + Height + Whole_weight + Shucked_weight + Viscera_weight + Shell_weight+ Sex, data = x)
+mult_2 <- lm(log(Rings)~Weight_per_Volume + Viscera_weight + Shell_weight  , data = x)
+mult_3 <- lm(log(Rings)~Weight_per_Volume + Viscera_weight + Shell_weight + Sex , data = x)
+
+
+BIC(lm_0, mult_1, mult_2 , mult_3, lm_1)
+```
+
+Le modèle mult_2 semble encore une fois être le meilleur modèle de regression multiple que nous avons.
+
+```{r}
+linear_model <- lm(log(Rings) ~ Weight_per_Volume , data = x)
+multiple_model <- mult_2
+
+```
+
+### ANOVA - ANCOVA
+
+```{r}
+anova(linear_model, multiple_model)
+```
+
+D'après l'analyse anova le modèle multiple est à préferer au modèle linéaire classique.
+
+## Effect of the Covariates
+
+```{r}
+mult_cov <- lm(log(Rings)~Weight_per_Volume + Weight_per_Volume:Sex  + Viscera_weight+ Viscera_weight:Sex + Shell_weight + Shell_weight:Sex + Sex , data = x)
+summary(mult_cov)
+```
+
+Ainsi la variable sex semble avoir un effet interessant quand on l'ajoute au modèle mais également lorque l'on considère un effet de celle ci au niveau de l'intercept du poids des Viscères et du poids de la Coquille.Ainsi nous utiliserons ces condiérations pour choisir notre nouveaux modèle.
+
+```{r}
+mult_cov <- lm(log(Rings)~Weight_per_Volume + Viscera_weight+ Viscera_weight:Sex + Shell_weight + Shell_weight:Sex + Sex , data = x)
+
+```
+
+```{r}
+BIC(linear_model , multiple_model, mult_cov)
+AIC(linear_model , multiple_model, mult_cov)
+anova(multiple_model, mult_cov)
+```
+
+### Model Selection
+
+```{r}
+poly_1 = lm( log(Rings) ~ poly(Length , 2) + poly(Diameter , 2)  + poly(Height, 2) + poly( Whole_weight, 2) + poly(Shucked_weight,2) + poly(Viscera_weight, 2) + poly(Shell_weight, 2) +Sex , data = x)
+summary(poly_1)
+plot(poly_1)
+```
+
+```{r}
+poly_2 = lm( log(Rings) ~ poly(Diameter , 3) + poly(Length , 3)  + poly(Height, 3) + poly( Whole_weight, 3) + poly(Shucked_weight,3) + poly(Viscera_weight, 3) + poly(Shell_weight, 3) +Sex , data = x)
+summary(poly_2)
+plot(poly_2)
+```
+
+Les termes polynomiaux de degré 3 ne sont pas pertinents pour la variable Shuckled_weight ainsi en tenant compte des résultats du test de Student effectué sur les différentes variables. Définissons un deuxième modèle polynomial.
+
+```{r}
+poly_3 = lm( log(Rings) ~  I(Diameter^3)+  Length + Height + Whole_weight + I(Whole_weight^3)  + poly(Shucked_weight,2) + Viscera_weight + I(Viscera_weight^3) + poly(Shell_weight, 3) +Sex , data = x)
+summary(poly_3)
+plot(poly_3)
+```
+
+```{r}
+poly_4 = lm( log(Rings) ~  I(Diameter^3) + Diameter + Height + Whole_weight + I(Whole_weight^3)  + poly(Shucked_weight,2) + Viscera_weight + I(Viscera_weight^3) + poly(Shell_weight, 3) +Sex , data = x)
+summary(poly_4)
+plot(poly_4)
+```
+
+```{r}
+poly_5 = lm( log(Rings) ~ poly(Diameter , 4) + poly(Length , 4)  + poly(Height, 4) + poly( Whole_weight, 4) + poly(Shucked_weight,4) + poly(Viscera_weight, 4) + poly(Shell_weight, 4) +Sex , data = x)
+summary(poly_5)
+plot(poly_5)
+```
+
+```{r}
+poly_6 = lm( log(Rings) ~  Length  + Height  + Whole_weight + I(Whole_weight^3) + poly(Shucked_weight,4) + Viscera_weight+ I(Viscera_weight^3) + poly(Shell_weight, 4) +Sex , data = x)
+summary(poly_6)
+plot(poly_6)
+```
+
+```{r}
+poly_7 = lm( log(Rings) ~  Length  + Height  + Whole_weight + I(Whole_weight^3) + poly(Shucked_weight,2) + Viscera_weight+ I(Viscera_weight^3) + poly(Shell_weight, 4) +Sex , data = x)
+summary(poly_7)
+plot(poly_7)
+```
+
+```{r}
+BIC(poly_7 , multiple_model)
+```
+
+### 
+
+```{r}
+library(xgboost)
+library(caret)
+
+```
+
+### Fitting an XGboost model, a Ridge Model and an Elastic Net model
+
+```{r}
+m1_xgb <-
+  xgboost(
+    data = data.matrix(abalone_train),
+    label = data.matrix(abalone_train$Rings),
+    nrounds = 1000,
+    objective = "reg:squarederror",
+    early_stopping_rounds = 3,
+    max_depth = 6,
+    eta = .25
+  )
+y_pred = predict(m1_xgb, data.matrix(abalone_test))
+
+m2 insta
+```
+
+```{r}
+library(glmnet)
+cv <- cv.glmnet(data.matrix(abalone_train), data.matrix(abalone_train$Rings), alpha = 0)
+model_Ridge <- glmnet(data.matrix(abalone_train),data.matrix(abalone_train$Rings), alpha = 0, lambda = cv$lambda.min)
+cv <- cv.glmnet(data.matrix(abalone_train), data.matrix(abalone_train$Rings), alpha = 0.5)
+model_Elastic_Net <-  glmnet(data.matrix(abalone_train), data.matrix(abalone_train$Rings), alpha = 0.5 , lambda = cv$lambda.min)
+
+```
+
+```{r}
+y_pred2 <- predict( model_Ridge, data.matrix(abalone_test))
+y_pred3 <- predict( model_Elastic_Net, data.matrix(abalone_test))
+y_pred4 <- predict(poly_7 , abalone_test)
+abalone_test$Volume <-  abalone_test$Height*abalone_test$Diameter*abalone_test$Length
+abalone_test$Height_Weight <- abalone_test$Height/abalone_test$Shell_weight
+abalone_test$Weight_per_Volume  <-  abalone_test$Whole_weight/abalone_test$Volume
+y_pred5 <- predict(mult_cov, abalone_test)
+value <- c(RMSE(y_pred,abalone_test$Rings),RMSE(y_pred2,abalone_test$Rings),RMSE(y_pred3,abalone_test$Rings), RMSE(y_pred4,abalone_test$Rings), RMSE(y_pred5,abalone_test$Rings))
+
+```
+
+```{r}
+barplot(value , names.arg = c('Xgboost' , 'Ridge', 'Elastic Net' , 'Polynomial' , 'Mult_Cov') , title = '')
+
+```
+
+```{r}
+names <- c('Xgboost' , 'Ridge', 'Elastic Net' , 'Polynomial' , 'Mult_Cov')
+```
+
+```{r}
+RMSE <- value
+data <- data.frame(names, RMSE) 
+data
+```
